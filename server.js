@@ -31,7 +31,7 @@ app.use('/api', (req, res, next) => {
 });
 
 const DEUDAS = {
-  '12.572407-8': {
+  '12.572.407-8': {
     numeroCliente: '12.572.407-8',
     nombre: 'Fernando Luna',
     email: 'fernando.luna@lyra.com',
