@@ -1,10 +1,10 @@
 require('dotenv').config();
-const express = require('express');
-const crypto = require('crypto');
+import express, { json, urlencoded } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false })); // PayZen devuelve kr-answer / kr-hash por POST (form)
+app.use(json());
+app.use(urlencoded({ extended: false })); // PayZen devuelve kr-answer / kr-hash por POST (form)
 
 // URL(s) del frontend permitidas para CORS, separadas por coma. Sin "/" al final.
 // Ej. en Render: https://gasvalpo-frontend.onrender.com
@@ -29,7 +29,7 @@ app.use('/api', (req, res, next) => {
 
 const DEUDAS = {
   '12.572407-8': {
-    numeroCliente: '12.572407-8',
+    numeroCliente: '12.572.407-8',
     nombre: 'Fernando Luna',
     email: 'fernando.luna@lyra.com',
     direccion: 'Av Chile, San Isidro',
@@ -137,8 +137,8 @@ function hashValido(body) {
   return Object.values(TIENDAS).some((t) => {
     const clave = body['kr-hash-key'] === 'password' ? t.password : t.sha256;
     if (!clave) return false;
-    const esperado = Buffer.from(crypto.createHmac('sha256', clave).update(respuesta, 'utf8').digest('hex'));
-    return esperado.length === recibido.length && crypto.timingSafeEqual(esperado, recibido);
+    const esperado = Buffer.from(createHmac('sha256', clave).update(respuesta, 'utf8').digest('hex'));
+    return esperado.length === recibido.length && timingSafeEqual(esperado, recibido);
   });
 }
 
