@@ -1,18 +1,21 @@
 require('dotenv').config();
-import express, { json, urlencoded } from 'express';
-import { createHmac, timingSafeEqual } from 'crypto';
+const express = require('express');
+const crypto = require('crypto');
 
 const app = express();
-app.use(json());
-app.use(urlencoded({ extended: false })); // PayZen devuelve kr-answer / kr-hash por POST (form)
+app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // PayZen devuelve kr-answer / kr-hash por POST (form)
 
-// URL(s) del frontend permitidas para CORS, separadas por coma. Sin "/" al final.
-// Ej. en Render: https://gasvalpo-frontend.onrender.com
-const ORIGENES_PERMITIDOS = (process.env.FRONTEND_URL || 'http://localhost:5500,http://127.0.0.1:5500')
+// URL(s) del frontend, separadas por coma. Puede incluir ruta (ej. GitHub Pages:
+// https://usuario.github.io/mi-repo/). Para CORS se usa solo el origen (esquema + dominio).
+const URLS_FRONTEND = (process.env.FRONTEND_URL || 'http://localhost:5500,http://127.0.0.1:5500')
   .split(',')
-  .map((u) => u.trim().replace(/\/$/, ''))
+  .map((u) => u.trim())
   .filter(Boolean);
-const FRONTEND_PRINCIPAL = ORIGENES_PERMITIDOS[0];
+const ORIGENES_PERMITIDOS = URLS_FRONTEND.map((u) => {
+  try { return new URL(u).origin; } catch { return u.replace(/\/$/, ''); }
+});
+const FRONTEND_PRINCIPAL = URLS_FRONTEND[0]; // a donde vuelve el usuario tras pagar
 
 // CORS solo para la API que consume el navegador (el retorno y el IPN no lo necesitan)
 app.use('/api', (req, res, next) => {
@@ -29,7 +32,7 @@ app.use('/api', (req, res, next) => {
 
 const DEUDAS = {
   '12.572407-8': {
-    numeroCliente: '12.572.407-8',
+    numeroCliente: '12.572407-8',
     nombre: 'Fernando Luna',
     email: 'fernando.luna@lyra.com',
     direccion: 'Av Chile, San Isidro',
@@ -137,8 +140,8 @@ function hashValido(body) {
   return Object.values(TIENDAS).some((t) => {
     const clave = body['kr-hash-key'] === 'password' ? t.password : t.sha256;
     if (!clave) return false;
-    const esperado = Buffer.from(createHmac('sha256', clave).update(respuesta, 'utf8').digest('hex'));
-    return esperado.length === recibido.length && timingSafeEqual(esperado, recibido);
+    const esperado = Buffer.from(crypto.createHmac('sha256', clave).update(respuesta, 'utf8').digest('hex'));
+    return esperado.length === recibido.length && crypto.timingSafeEqual(esperado, recibido);
   });
 }
 
@@ -176,7 +179,7 @@ function paginaResultado(exito, mensaje) {
 <div class="card p-4 text-center shadow-sm" style="max-width:420px;">
   <h1 class="h4 mb-3">${exito ? '✅ Pago autorizado' : '⚠️ Pago no autorizado'}</h1>
   <p class="text-muted">${mensaje}</p>
-  <a href="${FRONTEND_PRINCIPAL}" class="btn" style="background:#0d1b4c;color:#fff;">Volver al inicio</a>
+  <a href="${escaparHtml(FRONTEND_PRINCIPAL)}" class="btn" style="background:#0d1b4c;color:#fff;">Volver al inicio</a>
 </div></body></html>`;
 }
 
